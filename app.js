@@ -288,14 +288,15 @@ async function toggleMacro() {
 let _histInterval = null;
 function startHistogramLoop() {
   if (_histInterval) return;
-  _histInterval = setInterval(drawHistogram, 200);
+  _histInterval = setInterval(drawHistogram, 500);
 }
 
 function drawHistogram() {
+  if (!state.showHistogram) return;
   if (!state.showHistogram || !histCtx || !video.videoWidth) return;
 
   // Capturar frame pequeño para análisis
-  const W = 80, H = 45;
+  const W = 48, H = 27;
   canvas.width = W; canvas.height = H;
   ctx.drawImage(video, 0, 0, W, H);
   let data;
@@ -337,7 +338,7 @@ function drawHistogram() {
 // ── MODO GUIADO ───────────────────────────────────────────
 function analyzeFrame() {
   if (!state.guidedShot || !video.videoWidth) return;
-  const W = 60, H = 40;
+  const W = 40, H = 25;
   canvas.width = W; canvas.height = H;
   ctx.drawImage(video, 0, 0, W, H);
   let data;
@@ -375,7 +376,7 @@ function analyzeFrame() {
 }
 
 let _guidedInterval = null;
-function startGuidedAnalysis() { stopGuidedAnalysis(); _guidedInterval = setInterval(analyzeFrame, 400); }
+function startGuidedAnalysis() { stopGuidedAnalysis(); _guidedInterval = setInterval(analyzeFrame, 800); }
 function stopGuidedAnalysis()  {
   clearInterval(_guidedInterval); _guidedInterval = null;
   const vf = $('viewfinder');
@@ -708,10 +709,11 @@ function bindEvents() {
   $('viewfinder').addEventListener('touchend',   handlePinchEnd);
 
   // Cerrar panel al tocar viewfinder
-  $('viewfinder').addEventListener('click', () => { if (state.currentPanel) closePanel(); }, true);
+  // Panel se cierra via closePanel() llamado desde openPanel() cuando se toca el mismo panel
 
   // Botones acción
   $('btn-capture').addEventListener('click', () => { if (!state.timerRunning) runTimerThenShoot(); });
+  $('btn-capture').addEventListener('touchend', e => { e.preventDefault(); if (!state.timerRunning) runTimerThenShoot(); });
   $('btn-flash').addEventListener('click', toggleFlash);
   $('btn-timer').addEventListener('click', cycleTimer);
   $('btn-lock').addEventListener('click', toggleLock);
