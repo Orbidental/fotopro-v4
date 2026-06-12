@@ -139,8 +139,11 @@ function updateZoomIndicator() {
 // ── TAP TO FOCUS ──────────────────────────────────────────
 async function handleTapFocus(e) {
   if (state.locked) return;
+  // Solo actuar si el toque fue directamente sobre el video o el viewfinder
   const tag = e.target.tagName;
-  if (tag === 'BUTTON' || tag === 'INPUT' || tag === 'DIV' && e.target.id !== 'viewfinder') return;
+  if (tag === 'BUTTON' || tag === 'INPUT') return;
+  if (tag === 'DIV' && e.target.id !== 'viewfinder' && e.target.id !== 'grid-overlay') return;
+  if (e.target.id === 'btn-capture' || e.target.id === 'btn-capture-wrap' || e.target.id === 'btn-capture-ring') return;
 
   const rect = $('viewfinder').getBoundingClientRect();
   const x = (e.clientX - rect.left) / rect.width;
