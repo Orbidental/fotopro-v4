@@ -3,37 +3,32 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <meta name="theme-color" content="#111111" />
+  <meta name="theme-color" content="#000000" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-fullscreen" />
   <title>FotoPro Productos</title>
   <link rel="manifest" href="manifest.json" />
   <link rel="icon" href="icons/icon-192.png" />
-  <link rel="apple-touch-icon" href="icons/icon-192.png" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
     :root {
-      --bg:      #111;
-      --bg2:     #1a1a1a;
-      --bg3:     #222;
-      --border:  rgba(255,255,255,0.12);
-      --text:    #fff;
-      --text2:   rgba(255,255,255,0.55);
-      --accent:  #f0c040;
-      --danger:  #e05050;
-      --success: #40c070;
-      --radius:  12px;
-      --radius-sm: 8px;
+      --accent: #FFD60A;
+      --accent2: #FF9F0A;
+      --danger: #FF453A;
+      --success: #32D74B;
+      --blue: #0A84FF;
+      --text: #ffffff;
+      --text2: rgba(255,255,255,0.5);
+      --text3: rgba(255,255,255,0.25);
+      --glass: rgba(28,28,30,0.85);
+      --glass2: rgba(44,44,46,0.9);
+      --border: rgba(255,255,255,0.1);
     }
-
     html, body {
-      height: 100%; width: 100%;
-      overflow: hidden;
-      background: var(--bg);
-      color: var(--text);
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      height: 100%; width: 100%; overflow: hidden;
+      background: #000; color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
       -webkit-tap-highlight-color: transparent;
       user-select: none;
     }
@@ -42,459 +37,561 @@
     .screen { position: absolute; inset: 0; display: none; flex-direction: column; }
     .screen.active { display: flex; }
 
-    /* ── CÁMARA ── */
+    /* ══════════════════════════════════════
+       PANTALLA CÁMARA
+    ══════════════════════════════════════ */
     #cam-screen { background: #000; }
 
     #viewfinder {
-      flex: 1;
-      position: relative;
-      overflow: hidden;
-      background: #000;
+      flex: 1; position: relative; overflow: hidden; background: #000;
     }
-
-    /* Borde de estado del modo guiado */
     #viewfinder.guided-ok   { box-shadow: inset 0 0 0 3px var(--success); }
     #viewfinder.guided-warn { box-shadow: inset 0 0 0 3px var(--danger); }
 
     #video {
-      width: 100%; height: 100%;
-      object-fit: cover;
-      display: block;
-      transform-origin: center center;
-      transition: transform 0.15s ease;
+      width: 100%; height: 100%; object-fit: cover; display: block;
+      transform-origin: center center; transition: transform 0.15s ease;
     }
 
-    /* ── ANILLO DE ENFOQUE ── */
+    /* ── ANILLO DE ENFOQUE estilo iPhone ── */
     #focus-ring {
       position: absolute;
-      width: 72px; height: 72px;
-      border: 2px solid var(--accent);
-      border-radius: 50%;
-      transform: translate(-50%, -50%) scale(1.3);
-      pointer-events: none;
-      opacity: 0;
-      transition: opacity 0.15s, transform 0.25s, border-color 0.2s;
+      width: 68px; height: 68px;
+      border: 1.5px solid var(--accent);
+      border-radius: 8px;
+      transform: translate(-50%, -50%) scale(1.4);
+      pointer-events: none; opacity: 0;
+      transition: opacity 0.15s, transform 0.3s cubic-bezier(0.34,1.56,0.64,1), border-color 0.2s;
+      box-shadow: 0 0 0 1px rgba(0,0,0,0.3);
     }
-    #focus-ring.visible  { opacity: 1; transform: translate(-50%, -50%) scale(1.3); }
-    #focus-ring.focusing { transform: translate(-50%, -50%) scale(1.0); border-color: var(--accent); }
-    #focus-ring.locked   { transform: translate(-50%, -50%) scale(0.85); border-color: var(--success); border-radius: 8px; }
+    #focus-ring::before, #focus-ring::after {
+      content: ''; position: absolute;
+      width: 8px; height: 8px;
+      border-color: var(--accent); border-style: solid;
+    }
+    #focus-ring::before { top: -4px; left: -4px; border-width: 2px 0 0 2px; }
+    #focus-ring::after  { bottom: -4px; right: -4px; border-width: 0 2px 2px 0; }
+    #focus-ring.visible  { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+    #focus-ring.focusing { transform: translate(-50%, -50%) scale(1.0); }
+    #focus-ring.locked   { border-color: var(--accent); opacity: 0.7; }
 
-    /* ── GRID ── */
+    /* ── GRID OVERLAY ── */
     #grid-overlay {
-      position: absolute; inset: 0;
-      pointer-events: none;
-      opacity: 0;
-      transition: opacity 0.3s;
+      position: absolute; inset: 0; pointer-events: none;
+      opacity: 0; transition: opacity 0.3s;
     }
     #grid-overlay.visible { opacity: 1; }
     #grid-overlay svg { width: 100%; height: 100%; }
 
-    /* ── INDICADORES FLOTANTES ── */
-    #locked-badge {
-      position: absolute;
-      top: 12px; right: 12px;
-      background: var(--accent);
-      color: #111;
-      font-size: 11px; font-weight: 700;
-      padding: 4px 10px;
-      border-radius: 20px;
-      opacity: 0; transition: opacity 0.3s;
+    /* ── HISTOGRAMA ── */
+    #histogram-overlay {
+      position: absolute; bottom: 12px; right: 12px;
+      width: 100px; height: 52px;
+      background: rgba(0,0,0,0.55);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 8px; overflow: hidden;
+      opacity: 0; transition: opacity 0.3s; pointer-events: none;
     }
-    #locked-badge.visible { opacity: 1; }
+    #histogram-overlay.visible { opacity: 1; }
+    #histogram-canvas { width: 100%; height: 100%; }
 
-    #zoom-indicator {
-      position: absolute;
-      top: 12px; left: 50%; transform: translateX(-50%);
-      background: rgba(0,0,0,0.65);
-      color: var(--accent);
-      font-size: 14px; font-weight: 700;
-      padding: 4px 14px;
-      border-radius: 20px;
-      border: 1px solid rgba(240,192,64,0.4);
-      opacity: 0; transition: opacity 0.3s;
+    /* ── INDICADORES TOP ── */
+    #top-bar {
+      position: absolute; top: 0; left: 0; right: 0;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 16px 8px;
+      background: linear-gradient(to bottom, rgba(0,0,0,0.5), transparent);
       pointer-events: none;
+    }
+    #zoom-indicator {
+      background: rgba(0,0,0,0.55);
+      color: var(--accent); font-size: 13px; font-weight: 700;
+      padding: 3px 12px; border-radius: 20px;
+      border: 1px solid rgba(255,215,10,0.3);
+      opacity: 0; transition: opacity 0.3s; pointer-events: none;
     }
     #zoom-indicator.visible { opacity: 1; }
 
+    #locked-badge {
+      background: var(--accent); color: #000;
+      font-size: 11px; font-weight: 700;
+      padding: 3px 10px; border-radius: 20px;
+      opacity: 0; transition: opacity 0.3s;
+      pointer-events: auto; cursor: pointer;
+    }
+    #locked-badge.visible { opacity: 1; }
+
+    #timer-display {
+      position: absolute; top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 80px; font-weight: 100;
+      color: #fff; letter-spacing: -4px;
+      text-shadow: 0 2px 20px rgba(0,0,0,0.8);
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.2s;
+    }
+    #timer-display.visible { opacity: 1; }
+
     /* ── CONSEJOS MODO GUIADO ── */
     #guided-tips {
-      position: absolute;
-      top: 48px; left: 0; right: 0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 4px;
-      padding: 0 12px;
-      pointer-events: none;
+      position: absolute; top: 56px; left: 0; right: 0;
+      display: flex; flex-direction: column; align-items: center;
+      gap: 4px; padding: 0 16px; pointer-events: none;
     }
     .tip {
-      font-size: 12px; font-weight: 600;
-      padding: 4px 14px;
-      border-radius: 16px;
-      backdrop-filter: blur(6px);
+      font-size: 12px; font-weight: 600; padding: 4px 14px;
+      border-radius: 16px; backdrop-filter: blur(8px);
     }
-    .tip.ok   { background: rgba(40,180,90,0.85);  color: #fff; }
-    .tip.warn { background: rgba(200,60,40,0.85);  color: #fff; }
+    .tip.ok   { background: rgba(50,215,75,0.85);  color: #000; }
+    .tip.warn { background: rgba(255,69,58,0.85);  color: #fff; }
 
-    /* ── BARRA INFERIOR ── */
+    /* ── MACRO BADGE ── */
+    #macro-badge {
+      position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+      background: var(--blue); color: #fff;
+      font-size: 11px; font-weight: 700;
+      padding: 3px 12px; border-radius: 20px;
+      opacity: 0; transition: opacity 0.3s; pointer-events: none;
+    }
+    #macro-badge.visible { opacity: 1; }
+
+    /* ── FLASH OVERLAY ── */
+    #flash-overlay {
+      position: absolute; inset: 0; background: #fff;
+      opacity: 0; pointer-events: none; z-index: 5;
+    }
+
+    /* ── MINIATURA ── */
+    #last-thumb {
+      position: absolute; bottom: 8px; left: 12px;
+      width: 56px; height: 56px; border-radius: 10px;
+      border: 2px solid rgba(255,255,255,0.3);
+      object-fit: cover; opacity: 0;
+      transition: opacity 0.3s; cursor: pointer; z-index: 4;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.5);
+    }
+    #last-thumb.visible { opacity: 1; }
+
+    /* ══════════════════════════════════════
+       BARRA INFERIOR estilo iOS
+    ══════════════════════════════════════ */
     #bottom-bar {
-      background: var(--bg);
-      padding: 10px 16px 20px;
+      background: var(--glass);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      padding: 10px 16px 28px;
       display: flex; flex-direction: column; gap: 10px;
+      border-top: 1px solid var(--border);
     }
 
-    /* Fila nombre */
+    /* Fila del código */
     #name-row { display: flex; align-items: center; gap: 8px; }
 
     #product-input {
-      flex: 1;
-      background: var(--bg3);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      color: var(--text);
-      font-size: 18px; font-weight: 600;
-      padding: 10px 14px;
-      outline: none;
-      letter-spacing: 0.5px;
+      flex: 1; background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 12px; color: var(--text);
+      font-size: 17px; font-weight: 600;
+      padding: 10px 14px; outline: none; letter-spacing: 0.3px;
+      transition: border-color 0.2s, background 0.2s;
     }
-    #product-input:focus { border-color: var(--accent); }
+    #product-input:focus {
+      border-color: var(--accent);
+      background: rgba(255,215,10,0.06);
+    }
     #product-input::placeholder { color: var(--text2); font-weight: 400; font-size: 15px; }
 
     #counter-badge {
-      background: var(--bg3);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      padding: 6px 10px;
-      font-size: 10px; color: var(--text2);
-      min-width: 52px; text-align: center; line-height: 1.3;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 12px; padding: 6px 10px;
+      min-width: 54px; text-align: center; line-height: 1.2;
     }
-    #counter-badge .num  { display: block; font-size: 18px; font-weight: 700; color: var(--accent); }
-    #counter-badge .sub  { display: block; font-size: 10px; color: var(--text2); }
+    #counter-badge .num { display: block; font-size: 20px; font-weight: 700; color: var(--accent); }
+    #counter-badge .sub { display: block; font-size: 9px; color: var(--text2); letter-spacing: 0.3px; }
 
-    /* Fila botones */
-    #action-row {
-      display: flex; align-items: center;
-      justify-content: space-between; gap: 8px;
-    }
-
-    #btn-settings, #btn-flash {
-      width: 52px; height: 52px;
-      border-radius: 50%;
-      background: var(--bg3);
-      border: 1px solid var(--border);
-      color: var(--text);
-      font-size: 22px;
-      display: flex; align-items: center; justify-content: center;
-      cursor: pointer;
-    }
-    #btn-flash.on { background: var(--accent); color: #111; border-color: var(--accent); }
-
-    #btn-capture {
-      width: 72px; height: 72px;
-      border-radius: 50%;
-      background: #fff;
-      border: 4px solid rgba(255,255,255,0.3);
-      cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      transition: transform 0.1s, background 0.1s;
-      flex-shrink: 0;
-    }
-    #btn-capture:active    { transform: scale(0.92); background: #ddd; }
-    #btn-capture.capturing { background: var(--accent); }
-
-    /* Controles rápidos */
+    /* ── CONTROLES RÁPIDOS (chips) ── */
     #quick-controls {
-      display: flex; gap: 8px;
-      overflow-x: auto; padding-bottom: 2px;
-      scrollbar-width: none;
+      display: flex; gap: 6px; overflow-x: auto;
+      padding-bottom: 2px; scrollbar-width: none;
     }
     #quick-controls::-webkit-scrollbar { display: none; }
 
     .qc-btn {
       flex-shrink: 0;
-      background: var(--bg3);
-      border: 1px solid var(--border);
-      border-radius: 20px;
-      color: var(--text2);
-      font-size: 12px;
-      padding: 6px 12px;
-      cursor: pointer;
-      display: flex; align-items: center; gap: 5px;
-      white-space: nowrap;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 20px; color: var(--text2);
+      font-size: 12px; padding: 5px 11px;
+      cursor: pointer; display: flex; align-items: center; gap: 4px;
+      white-space: nowrap; transition: all 0.15s;
     }
-    .qc-btn.active { border-color: var(--accent); color: var(--accent); }
-    .qc-btn .val   { color: var(--text); font-weight: 600; }
+    .qc-btn.active {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: rgba(255,215,10,0.1);
+    }
+    .qc-btn.active-blue {
+      border-color: var(--blue); color: var(--blue);
+      background: rgba(10,132,255,0.1);
+    }
+    .qc-btn .val { color: var(--text); font-weight: 600; }
 
-    /* ── PANEL DESLIZABLE ── */
-    #slider-panel {
+    /* ── FILA DE ACCIÓN estilo iOS ── */
+    #action-row {
+      display: flex; align-items: center;
+      justify-content: space-between; gap: 8px;
+      padding: 0 4px;
+    }
+
+    /* Grupo izquierdo: settings + flash */
+    #left-actions, #right-actions {
+      display: flex; align-items: center; gap: 10px;
+    }
+
+    .icon-btn {
+      width: 48px; height: 48px; border-radius: 50%;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.15);
+      color: var(--text); font-size: 20px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; transition: all 0.15s;
+      position: relative;
+    }
+    .icon-btn:active { transform: scale(0.9); background: rgba(255,255,255,0.2); }
+    .icon-btn.active-yellow { background: rgba(255,215,10,0.2); border-color: var(--accent); color: var(--accent); }
+    .icon-btn.active-blue   { background: rgba(10,132,255,0.2); border-color: var(--blue);   color: var(--blue); }
+    .icon-btn.active-red    { background: rgba(255,69,58,0.2);  border-color: var(--danger);  color: var(--danger); }
+
+    /* Botón de captura estilo iPhone */
+    #btn-capture-wrap {
+      position: relative; width: 80px; height: 80px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    #btn-capture-ring {
+      position: absolute; inset: 0; border-radius: 50%;
+      border: 3px solid rgba(255,255,255,0.4);
+    }
+    #btn-capture {
+      width: 66px; height: 66px; border-radius: 50%;
+      background: #fff; border: none;
+      cursor: pointer; transition: transform 0.1s, background 0.1s;
+      flex-shrink: 0;
+    }
+    #btn-capture:active    { transform: scale(0.88); background: #ddd; }
+    #btn-capture.capturing { background: var(--accent); transform: scale(0.88); }
+    #btn-capture.timer-armed { background: var(--danger); }
+
+    /* Etiqueta de timer sobre el botón */
+    #timer-label {
+      position: absolute; bottom: -18px; left: 50%;
+      transform: translateX(-50%);
+      font-size: 11px; color: var(--danger); font-weight: 700;
+      white-space: nowrap; opacity: 0; transition: opacity 0.2s;
+    }
+    #timer-label.visible { opacity: 1; }
+
+    /* ── UNLOCK BUTTON (siempre visible cuando bloqueado) ── */
+    #btn-unlock {
       position: absolute;
-      bottom: 0; left: 0; right: 0;
-      background: var(--bg2);
+      bottom: 210px; left: 50%; transform: translateX(-50%);
+      background: var(--accent); color: #000;
+      font-size: 13px; font-weight: 700;
+      padding: 8px 20px; border-radius: 24px;
+      border: none; cursor: pointer;
+      box-shadow: 0 4px 20px rgba(255,215,10,0.4);
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.25s, transform 0.25s;
+      transform: translateX(-50%) translateY(10px);
+      z-index: 20; white-space: nowrap;
+    }
+    #btn-unlock.visible {
+      opacity: 1; pointer-events: auto;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* ══════════════════════════════════════
+       PANEL DESLIZABLE
+    ══════════════════════════════════════ */
+    #slider-panel {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      background: var(--glass2);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
       border-top: 1px solid var(--border);
-      border-radius: 16px 16px 0 0;
-      padding: 16px 20px 28px;
+      border-radius: 20px 20px 0 0;
+      padding: 12px 20px 32px;
       transform: translateY(100%);
-      transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
-      z-index: 10;
-      max-height: 70vh;
-      overflow-y: auto;
+      transition: transform 0.35s cubic-bezier(0.4,0,0.2,1);
+      z-index: 10; max-height: 72vh; overflow-y: auto;
     }
     #slider-panel.open { transform: translateY(0); }
 
     .panel-handle {
       width: 36px; height: 4px;
-      background: var(--border);
-      border-radius: 2px;
-      margin: 0 auto 16px;
+      background: rgba(255,255,255,0.2);
+      border-radius: 2px; margin: 0 auto 14px;
+    }
+    .panel-title {
+      font-size: 13px; font-weight: 600; color: var(--text2);
+      text-align: center; margin-bottom: 14px;
+      text-transform: uppercase; letter-spacing: 0.8px;
     }
 
     .control-row {
       display: flex; align-items: center; gap: 12px;
-      margin-bottom: 14px;
+      margin-bottom: 12px;
     }
     .control-label {
       font-size: 12px; color: var(--text2);
       width: 52px; flex-shrink: 0;
     }
     .control-val {
-      font-size: 13px; font-weight: 600; color: var(--accent);
+      font-size: 13px; font-weight: 700; color: var(--accent);
       min-width: 44px; text-align: right; flex-shrink: 0;
     }
     input[type=range] {
-      flex: 1;
-      accent-color: var(--accent);
-      height: 4px;
+      flex: 1; accent-color: var(--accent); height: 4px;
+      cursor: pointer;
     }
 
-    /* Presets (chips) */
     .preset-row {
       display: flex; gap: 6px; flex-wrap: wrap;
-      margin: -6px 0 12px;
+      margin: -4px 0 12px 64px;
     }
     .preset-chip {
-      background: var(--bg3);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      color: var(--text2);
-      font-size: 11px;
-      padding: 4px 10px;
-      cursor: pointer;
-      white-space: nowrap;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 14px; color: var(--text2);
+      font-size: 11px; padding: 4px 10px;
+      cursor: pointer; white-space: nowrap; transition: all 0.15s;
     }
-    .preset-chip.active { border-color: var(--accent); color: var(--accent); }
-
-    #btn-lock-controls {
-      width: 100%;
-      padding: 12px;
-      background: var(--bg3);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      color: var(--text);
-      font-size: 14px; font-weight: 600;
-      cursor: pointer;
-      margin-top: 4px;
+    .preset-chip.active {
+      border-color: var(--accent); color: var(--accent);
+      background: rgba(255,215,10,0.1);
     }
-    #btn-lock-controls.locked { background: var(--accent); color: #111; border-color: var(--accent); }
 
-    /* ── PANTALLA AJUSTES ── */
-    #settings-screen { background: var(--bg); overflow-y: auto; }
+    /* ══════════════════════════════════════
+       PANTALLA AJUSTES
+    ══════════════════════════════════════ */
+    #settings-screen { background: #1c1c1e; overflow-y: auto; }
 
     .settings-header {
       display: flex; align-items: center; gap: 12px;
       padding: 20px 16px 16px;
       border-bottom: 1px solid var(--border);
       position: sticky; top: 0;
-      background: var(--bg); z-index: 1;
+      background: rgba(28,28,30,0.95);
+      backdrop-filter: blur(10px); z-index: 1;
     }
-    .settings-header h1 { font-size: 18px; font-weight: 600; }
+    .settings-header h1 { font-size: 17px; font-weight: 600; }
     #btn-back {
-      width: 36px; height: 36px;
-      background: var(--bg3); border: 1px solid var(--border);
-      border-radius: 50%; color: var(--text); font-size: 18px;
+      width: 32px; height: 32px;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid var(--border); border-radius: 50%;
+      color: var(--text); font-size: 16px;
       display: flex; align-items: center; justify-content: center;
       cursor: pointer;
     }
 
     .settings-section {
-      padding: 16px;
+      padding: 0 16px;
       border-bottom: 1px solid var(--border);
     }
     .settings-section h2 {
       font-size: 11px; font-weight: 600; color: var(--text2);
       text-transform: uppercase; letter-spacing: 0.8px;
-      margin-bottom: 12px;
+      padding: 16px 0 8px;
     }
     .setting-row {
       display: flex; align-items: center;
-      justify-content: space-between; padding: 10px 0;
+      justify-content: space-between; padding: 12px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
     }
+    .setting-row:last-child { border-bottom: none; }
     .setting-label  { font-size: 15px; }
     .setting-desc   { font-size: 12px; color: var(--text2); margin-top: 2px; }
 
     select, input[type=text], input[type=number] {
-      background: var(--bg3);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      color: var(--text);
-      font-size: 14px; padding: 8px 10px; outline: none;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid var(--border); border-radius: 8px;
+      color: var(--text); font-size: 14px; padding: 7px 10px; outline: none;
     }
-    select:focus, input[type=text]:focus, input[type=number]:focus {
-      border-color: var(--accent);
-    }
+    select:focus, input[type=number]:focus { border-color: var(--accent); }
 
-    .dim-row { display: flex; align-items: center; gap: 8px; }
-    .dim-row input { width: 80px; text-align: center; }
-    .dim-row span  { color: var(--text2); }
+    .dim-row { display: flex; align-items: center; gap: 6px; }
+    .dim-row input { width: 72px; text-align: center; }
+    .dim-row span  { color: var(--text2); font-size: 13px; }
 
-    /* Toggle switch */
+    /* Toggle estilo iOS */
     .toggle {
-      width: 44px; height: 26px;
-      background: var(--bg3); border: 1px solid var(--border);
-      border-radius: 13px; position: relative;
-      cursor: pointer; transition: background 0.2s; flex-shrink: 0;
+      width: 50px; height: 30px; background: #3a3a3c;
+      border-radius: 15px; position: relative;
+      cursor: pointer; transition: background 0.25s; flex-shrink: 0;
     }
     .toggle::after {
-      content: '';
-      width: 20px; height: 20px; border-radius: 50%;
-      background: var(--text2);
-      position: absolute; top: 2px; left: 2px;
-      transition: transform 0.2s, background 0.2s;
+      content: ''; width: 26px; height: 26px; border-radius: 50%;
+      background: #fff; position: absolute; top: 2px; left: 2px;
+      transition: transform 0.25s cubic-bezier(0.34,1.56,0.64,1);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.3);
     }
-    .toggle.on { background: var(--accent); border-color: var(--accent); }
-    .toggle.on::after { transform: translateX(18px); background: #111; }
+    .toggle.on { background: var(--success); }
+    .toggle.on::after { transform: translateX(20px); }
 
-    /* ── TOAST ── */
+    /* ══════════════════════════════════════
+       TOAST
+    ══════════════════════════════════════ */
     #toast {
-      position: absolute;
-      top: 60px; left: 50%; transform: translateX(-50%);
-      background: rgba(0,0,0,0.85);
-      color: #fff; font-size: 13px;
+      position: absolute; top: 64px; left: 50%; transform: translateX(-50%);
+      background: var(--glass2); backdrop-filter: blur(12px);
+      color: #fff; font-size: 13px; font-weight: 500;
       padding: 8px 18px; border-radius: 20px;
-      border: 1px solid var(--border);
-      white-space: nowrap;
-      opacity: 0; transition: opacity 0.25s;
-      z-index: 100; pointer-events: none;
+      border: 1px solid var(--border); white-space: nowrap;
+      opacity: 0; transition: opacity 0.2s; z-index: 100; pointer-events: none;
     }
     #toast.show { opacity: 1; }
-    #toast.warn { border-color: var(--danger);  color: #ff9090; }
-    #toast.ok   { border-color: var(--success); color: #80ffb0; }
+    #toast.warn { border-color: var(--danger);  color: #FF6B6B; }
+    #toast.ok   { border-color: var(--success); color: #4CD964; }
 
-    /* ── FLASH OVERLAY ── */
-    #flash-overlay {
-      position: absolute; inset: 0;
-      background: #fff; opacity: 0;
-      pointer-events: none; z-index: 5;
-      transition: opacity 0.05s;
-    }
-
-    /* ── MINIATURA ── */
-    #last-thumb {
-      position: absolute;
-      bottom: 12px; left: 12px;
-      width: 52px; height: 52px;
-      border-radius: 8px; border: 2px solid var(--border);
-      object-fit: cover; opacity: 0;
-      transition: opacity 0.3s; cursor: pointer; z-index: 4;
-    }
-    #last-thumb.visible { opacity: 1; }
-
-    /* ── VISTA PREVIA ── */
+    /* ══════════════════════════════════════
+       VISTA PREVIA
+    ══════════════════════════════════════ */
     #preview-screen {
-      background: #000;
-      align-items: center; justify-content: center; flex-direction: column;
+      background: #000; align-items: center;
+      justify-content: center; flex-direction: column;
     }
-    #preview-img     { max-width: 100%; max-height: 80vh; object-fit: contain; }
-    #preview-name    { margin-top: 12px; font-size: 13px; color: var(--text2); }
+    #preview-img     { max-width: 100%; max-height: 82vh; object-fit: contain; }
+    #preview-name    { margin-top: 10px; font-size: 13px; color: var(--text2); }
     #btn-close-preview {
       position: absolute; top: 20px; right: 16px;
-      width: 36px; height: 36px;
-      background: rgba(0,0,0,0.6); border: 1px solid var(--border);
-      border-radius: 50%; color: var(--text); font-size: 20px;
-      display: flex; align-items: center; justify-content: center;
-      cursor: pointer;
+      width: 34px; height: 34px; background: rgba(255,255,255,0.15);
+      border: none; border-radius: 50%; color: var(--text); font-size: 18px;
+      display: flex; align-items: center; justify-content: center; cursor: pointer;
     }
 
     canvas { display: none; }
+    #histogram-canvas { display: block; }
   </style>
 </head>
 <body>
 
-<!-- ═══════════════ PANTALLA CÁMARA ═══════════════ -->
+<!-- ═══════════════════════════════════
+     PANTALLA CÁMARA
+════════════════════════════════════ -->
 <div id="cam-screen" class="screen active">
   <div id="viewfinder">
     <video id="video" autoplay playsinline muted></video>
 
-    <!-- Grid regla de tercios -->
+    <!-- Grid -->
     <div id="grid-overlay">
       <svg viewBox="0 0 100 100" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-        <line x1="33.3" y1="0"  x2="33.3" y2="100" stroke="rgba(255,255,255,0.22)" stroke-width="0.3"/>
-        <line x1="66.6" y1="0"  x2="66.6" y2="100" stroke="rgba(255,255,255,0.22)" stroke-width="0.3"/>
-        <line x1="0" y1="33.3"  x2="100" y2="33.3"  stroke="rgba(255,255,255,0.22)" stroke-width="0.3"/>
-        <line x1="0" y1="66.6"  x2="100" y2="66.6"  stroke="rgba(255,255,255,0.22)" stroke-width="0.3"/>
-        <!-- Centro -->
-        <circle cx="50" cy="50" r="1.2" fill="rgba(255,255,255,0.3)"/>
+        <!-- Tercios -->
+        <line x1="33.3" y1="0" x2="33.3" y2="100" stroke="rgba(255,255,255,0.2)" stroke-width="0.25"/>
+        <line x1="66.6" y1="0" x2="66.6" y2="100" stroke="rgba(255,255,255,0.2)" stroke-width="0.25"/>
+        <line x1="0" y1="33.3" x2="100" y2="33.3" stroke="rgba(255,255,255,0.2)" stroke-width="0.25"/>
+        <line x1="0" y1="66.6" x2="100" y2="66.6" stroke="rgba(255,255,255,0.2)" stroke-width="0.25"/>
+        <!-- Rectángulo central de encuadre de producto -->
+        <rect x="15" y="12" width="70" height="76" fill="none"
+          stroke="rgba(255,215,10,0.35)" stroke-width="0.4" stroke-dasharray="3,2"/>
+        <!-- Cruz central -->
+        <line x1="48" y1="50" x2="52" y2="50" stroke="rgba(255,255,255,0.6)" stroke-width="0.5"/>
+        <line x1="50" y1="48" x2="50" y2="52" stroke="rgba(255,255,255,0.6)" stroke-width="0.5"/>
       </svg>
     </div>
 
-    <!-- Anillo de enfoque (tap to focus) -->
+    <!-- Anillo de enfoque -->
     <div id="focus-ring"></div>
 
-    <!-- Indicadores flotantes -->
-    <div id="locked-badge">🔒 BLOQUEADO</div>
-    <div id="zoom-indicator">1.0×</div>
+    <!-- Top bar con indicadores -->
+    <div id="top-bar">
+      <div id="zoom-indicator">1.0×</div>
+      <div id="macro-badge">🔬 MACRO</div>
+      <div id="locked-badge" onclick="unlockFromBadge()">🔒 Toca para desbloquear</div>
+    </div>
 
-    <!-- Consejos modo guiado -->
+    <!-- Temporizador -->
+    <div id="timer-display">3</div>
+
+    <!-- Modo guiado tips -->
     <div id="guided-tips"></div>
+
+    <!-- Histograma -->
+    <div id="histogram-overlay">
+      <canvas id="histogram-canvas" width="100" height="52"></canvas>
+    </div>
 
     <div id="flash-overlay"></div>
     <img id="last-thumb" alt="última foto" />
   </div>
 
-  <!-- Barra inferior -->
+  <!-- Botón de desbloqueo siempre visible en pantalla -->
+  <button id="btn-unlock" onclick="unlockFromBadge()">🔓 Desbloquear ajustes</button>
+
+  <!-- ── Barra inferior ── -->
   <div id="bottom-bar">
-    <!-- Nombre del producto + contador -->
+
+    <!-- Código + contador -->
     <div id="name-row">
       <input id="product-input" type="text" inputmode="text"
-        placeholder="Código (ej: 1234)" autocomplete="off" autocorrect="off" spellcheck="false" />
+        placeholder="Código del producto" autocomplete="off"
+        autocorrect="off" spellcheck="false" />
       <div id="counter-badge">
         <span class="num" id="product-counter">0</span>
-        <span class="sub">fotos</span>
-        <span class="sub" id="photo-count" style="display:none">0</span>
+        <span class="sub">FOTOS</span>
+        <span id="photo-count" style="display:none">0</span>
       </div>
     </div>
 
     <!-- Controles rápidos -->
     <div id="quick-controls">
-      <div class="qc-btn" id="qc-ev"   data-panel="ev">  ± EV  <span class="val" id="ev-label">0</span></div>
-      <div class="qc-btn" id="qc-wb"   data-panel="wb">  WB    <span class="val" id="wb-label">Auto</span></div>
-      <div class="qc-btn" id="qc-iso"  data-panel="iso"> ISO   <span class="val" id="iso-label">Auto</span></div>
-      <div class="qc-btn" id="qc-zoom" data-panel="zoom">Zoom  <span class="val" id="zoom-label">1×</span></div>
-      <div class="qc-btn" id="qc-grid">Grilla</div>
+      <div class="qc-btn" id="qc-ev"   data-panel="ev">  EV <span class="val" id="ev-label">0</span></div>
+      <div class="qc-btn" id="qc-wb"   data-panel="wb">  WB <span class="val" id="wb-label">Auto</span></div>
+      <div class="qc-btn" id="qc-iso"  data-panel="iso"> ISO <span class="val" id="iso-label">Auto</span></div>
+      <div class="qc-btn" id="qc-zoom" data-panel="zoom">🔍 <span class="val" id="zoom-label">1×</span></div>
+      <div class="qc-btn" id="qc-grid">⊞ Grilla</div>
+      <div class="qc-btn" id="qc-hist">📊 Histo</div>
+      <div class="qc-btn" id="qc-macro">🔬 Macro</div>
     </div>
 
-    <!-- Botones principales -->
+    <!-- Botones de acción estilo iOS -->
     <div id="action-row">
-      <button id="btn-settings" aria-label="Ajustes">⚙️</button>
-      <button id="btn-capture"  aria-label="Tomar foto"></button>
-      <button id="btn-flash"    aria-label="Flash">⚡</button>
+      <div id="left-actions">
+        <div class="icon-btn" id="btn-settings"  aria-label="Ajustes">⚙️</div>
+        <div class="icon-btn" id="btn-flash"      aria-label="Flash">⚡</div>
+        <div class="icon-btn" id="btn-timer"      aria-label="Temporizador">⏱</div>
+      </div>
+
+      <div id="btn-capture-wrap">
+        <div id="btn-capture-ring"></div>
+        <button id="btn-capture" aria-label="Tomar foto"></button>
+        <div id="timer-label"></div>
+      </div>
+
+      <div id="right-actions">
+        <div class="icon-btn" id="btn-lock"   aria-label="Bloquear">🔓</div>
+        <div class="icon-btn" id="btn-flip"   aria-label="Voltear">🔄</div>
+      </div>
     </div>
+
   </div>
 
-  <!-- ── Panel deslizable de controles manuales ── -->
+  <!-- Panel deslizable -->
   <div id="slider-panel">
     <div class="panel-handle"></div>
+    <div class="panel-title" id="panel-title">Exposición</div>
 
     <!-- EV -->
     <div class="control-row" data-panel="ev">
-      <span class="control-label">Exposición</span>
+      <span class="control-label">Exp.</span>
       <input type="range" id="sl-ev" min="-3" max="3" step="0.1" value="0" />
       <span class="control-val" id="sl-ev-val">0</span>
     </div>
-    <div class="preset-row" id="ev-presets">
+    <div class="preset-row">
       <div class="preset-chip active" data-ev-preset="auto">Auto</div>
-      <div class="preset-chip" data-ev-preset="light">Producto claro</div>
-      <div class="preset-chip" data-ev-preset="dark">Producto oscuro</div>
-      <div class="preset-chip" data-ev-preset="white">Fondo blanco</div>
+      <div class="preset-chip" data-ev-preset="light">Claro +1</div>
+      <div class="preset-chip" data-ev-preset="dark">Oscuro -1</div>
+      <div class="preset-chip" data-ev-preset="white">Fdo blanco</div>
     </div>
 
     <!-- WB -->
@@ -503,7 +600,7 @@
       <input type="range" id="sl-wb" min="2500" max="7500" step="100" value="5500" />
       <span class="control-val" id="sl-wb-val">5500K</span>
     </div>
-    <div class="preset-row" id="wb-presets">
+    <div class="preset-row">
       <div class="preset-chip active" data-wb-preset="auto">Auto</div>
       <div class="preset-chip" data-wb-preset="daylight">Sol</div>
       <div class="preset-chip" data-wb-preset="cloudy">Nublado</div>
@@ -524,12 +621,12 @@
       <input type="range" id="sl-zoom" min="1" max="5" step="0.1" value="1" />
       <span class="control-val" id="sl-zoom-val">1.0×</span>
     </div>
-
-    <button id="btn-lock-controls">🔓 Bloquear ajustes</button>
   </div>
 </div>
 
-<!-- ═══════════════ PANTALLA AJUSTES ═══════════════ -->
+<!-- ═══════════════════════════════════
+     PANTALLA AJUSTES
+════════════════════════════════════ -->
 <div id="settings-screen" class="screen">
   <div class="settings-header">
     <button id="btn-back" aria-label="Volver">←</button>
@@ -538,7 +635,6 @@
 
   <div class="settings-section">
     <h2>Salida de fotos</h2>
-
     <div class="setting-row">
       <div><div class="setting-label">Formato</div></div>
       <select id="set-format">
@@ -547,7 +643,6 @@
         <option value="image/webp">WebP</option>
       </select>
     </div>
-
     <div class="setting-row">
       <div>
         <div class="setting-label">Dimensiones</div>
@@ -559,111 +654,77 @@
         <input type="number" id="set-height" value="1200" min="100" max="6000" />
       </div>
     </div>
-
     <div class="setting-row">
       <div>
         <div class="setting-label">Calidad JPEG</div>
         <div class="setting-desc" id="quality-desc">95%</div>
       </div>
-      <input type="range" id="set-quality" min="50" max="100" value="95" style="width:100px" />
+      <input type="range" id="set-quality" min="50" max="100" value="95" style="width:90px" />
     </div>
   </div>
 
   <div class="settings-section">
     <h2>Nomenclatura</h2>
-
     <div class="setting-row">
       <div>
         <div class="setting-label">Numeración automática</div>
-        <div class="setting-desc">Formato: -CODIGO-1, -CODIGO-2, ...</div>
+        <div class="setting-desc">Formato: CODIGO-1.jpeg, CODIGO-2.jpeg...</div>
       </div>
       <div id="tog-autonumber" class="toggle on"></div>
-    </div>
-
-    <div class="setting-row">
-      <div>
-        <div class="setting-label">Advertir si ya existe</div>
-        <div class="setting-desc">Alerta antes de sobreescribir</div>
-      </div>
-      <div id="tog-warn-exists" class="toggle on"></div>
     </div>
   </div>
 
   <div class="settings-section">
-    <h2>Procesamiento de imagen</h2>
-
+    <h2>Procesamiento</h2>
     <div class="setting-row">
       <div>
         <div class="setting-label">Fondo blanco profesional</div>
-        <div class="setting-desc">Limpia grises y lleva el fondo a blanco puro</div>
+        <div class="setting-desc">Lleva el fondo a blanco puro RGB 255</div>
       </div>
       <div id="tog-white-bg" class="toggle"></div>
     </div>
-
     <div class="setting-row">
       <div>
         <div class="setting-label">Sharpen inteligente</div>
-        <div class="setting-desc">Mejora nitidez y detalle del producto</div>
+        <div class="setting-desc">Mejora nitidez del producto</div>
       </div>
       <div id="tog-sharpen" class="toggle"></div>
     </div>
   </div>
 
   <div class="settings-section">
-    <h2>Visualización y asistencia</h2>
-
+    <h2>Asistencia</h2>
     <div class="setting-row">
       <div>
-        <div class="setting-label">Grilla de composición</div>
-        <div class="setting-desc">Regla de tercios</div>
-      </div>
-      <div id="tog-grid" class="toggle"></div>
-    </div>
-
-    <div class="setting-row">
-      <div>
-        <div class="setting-label">Modo guiado 🎯</div>
-        <div class="setting-desc">Detecta iluminación, centrado y sombras en tiempo real</div>
+        <div class="setting-label">Modo guiado</div>
+        <div class="setting-desc">Detecta luz, centrado y sombras</div>
       </div>
       <div id="tog-guided" class="toggle"></div>
-    </div>
-
-    <div class="setting-row">
-      <div>
-        <div class="setting-label">Cámara frontal</div>
-      </div>
-      <div id="tog-front-cam" class="toggle"></div>
     </div>
   </div>
 
   <div class="settings-section">
-    <h2>Sobre la app</h2>
+    <h2>Acerca de</h2>
     <div class="setting-row">
       <div>
         <div class="setting-label">FotoPro Productos</div>
-        <div class="setting-desc">v2.0 — Diseñada para catálogos y ecommerce</div>
-      </div>
-    </div>
-    <div class="setting-row">
-      <div>
-        <div class="setting-label">Nomenclatura</div>
-        <div class="setting-desc">Formato: -CODIGO-1.jpg  /  -CODIGO-2.jpg  /  etc.</div>
+        <div class="setting-desc">v3.0 — Optimizada para productos odontológicos</div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- ═══════════════ PANTALLA VISTA PREVIA ═══════════════ -->
+<!-- ═══════════════════════════════════
+     PANTALLA VISTA PREVIA
+════════════════════════════════════ -->
 <div id="preview-screen" class="screen">
   <button id="btn-close-preview" aria-label="Cerrar">✕</button>
   <img id="preview-img" alt="Vista previa" />
   <div id="preview-name"></div>
 </div>
 
-<!-- Canvas oculto para procesamiento -->
 <canvas id="canvas"></canvas>
 <div id="toast"></div>
-
 <script src="app.js"></script>
 </body>
 </html>
