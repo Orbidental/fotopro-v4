@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#111111" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-fullscreen" />
+  <title>FotoPro Productos</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #111;
+      --bg2:     #1a1a1a;
+      --bg3:     #222;
+      --border:  rgba(255,255,255,0.12);
+      --text:    #fff;
+      --text2:   rgba(255,255,255,0.55);
+      --accent:  #f0c040;
+      --danger:  #e05050;
+      --success: #40c070;
+      --radius:  12px;
+      --radius-sm: 8px;
+    }
+
+    html, body {
+      height: 100%; width: 100%;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    /* ── PANTALLAS ── */
+    .screen { position: absolute; inset: 0; display: none; flex-direction: column; }
+    .screen.active { display: flex; }
+
+    /* ── CÁMARA ── */
+    #cam-screen { background: #000; }
+
+    #viewfinder {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      background: #000;
+    }
+
+    /* Borde de estado del modo guiado */
+    #viewfinder.guided-ok   { box-shadow: inset 0 0 0 3px var(--success); }
+    #viewfinder.guided-warn { box-shadow: inset 0 0 0 3px var(--danger); }
+
+    #video {
+      width: 100%; height: 100%;
+      object-fit: cover;
+      display: block;
+      transform-origin: center center;
+      transition: transform 0.15s ease;
+    }
+
+    /* ── ANILLO DE ENFOQUE ── */
+    #focus-ring {
+      position: absolute;
+      width: 72px; height: 72px;
+      border: 2px solid var(--accent);
+      border-radius: 50%;
+      transform: translate(-50%, -50%) scale(1.3);
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.15s, transform 0.25s, border-color 0.2s;
+    }
+    #focus-ring.visible  { opacity: 1; transform: translate(-50%, -50%) scale(1.3); }
+    #focus-ring.focusing { transform: translate(-50%, -50%) scale(1.0); border-color: var(--accent); }
+    #focus-ring.locked   { transform: translate(-50%, -50%) scale(0.85); border-color: var(--success); border-radius: 8px; }
+
+    /* ── GRID ── */
+    #grid-overlay {
+      position: absolute; inset: 0;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    #grid-overlay.visible { opacity: 1; }
+    #grid-overlay svg { width: 100%; height: 100%; }
+
+    /* ── INDICADORES FLOTANTES ── */
+    #locked-badge {
+      position: absolute;
+      top: 12px; right: 12px;
+      background: var(--accent);
+      color: #111;
+      font-size: 11px; font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 20px;
+      opacity: 0; transition: opacity 0.3s;
+    }
+    #locked-badge.visible { opacity: 1; }
+
+    #zoom-indicator {
+      position: absolute;
+      top: 12px; left: 50%; transform: translateX(-50%);
+      background: rgba(0,0,0,0.65);
+      color: var(--accent);
+      font-size: 14px; font-weight: 700;
+      padding: 4px 14px;
+      border-radius: 20px;
+      border: 1px solid rgba(240,192,64,0.4);
+      opacity: 0; transition: opacity 0.3s;
+      pointer-events: none;
+    }
+    #zoom-indicator.visible { opacity: 1; }
+
+    /* ── CONSEJOS MODO GUIADO ── */
+    #guided-tips {
+      position: absolute;
+      top: 48px; left: 0; right: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      padding: 0 12px;
+      pointer-events: none;
+    }
+    .tip {
+      font-size: 12px; font-weight: 600;
+      padding: 4px 14px;
+      border-radius: 16px;
+      backdrop-filter: blur(6px);
+    }
+    .tip.ok   { background: rgba(40,180,90,0.85);  color: #fff; }
+    .tip.warn { background: rgba(200,60,40,0.85);  color: #fff; }
+
+    /* ── BARRA INFERIOR ── */
+    #bottom-bar {
+      background: var(--bg);
+      padding: 10px 16px 20px;
+      display: flex; flex-direction: column; gap: 10px;
+    }
+
+    /* Fila nombre */
+    #name-row { display: flex; align-items: center; gap: 8px; }
+
+    #product-input {
+      flex: 1;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      font-size: 18px; font-weight: 600;
+      padding: 10px 14px;
+      outline: none;
+      letter-spacing: 0.5px;
+    }
+    #product-input:focus { border-color: var(--accent); }
+    #product-input::placeholder { color: var(--text2); font-weight: 400; font-size: 15px; }
+
+    #counter-badge {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 6px 10px;
+      font-size: 10px; color: var(--text2);
+      min-width: 52px; text-align: center; line-height: 1.3;
+    }
+    #counter-badge .num  { display: block; font-size: 18px; font-weight: 700; color: var(--accent); }
+    #counter-badge .sub  { display: block; font-size: 10px; color: var(--text2); }
+
+    /* Fila botones */
+    #action-row {
+      display: flex; align-items: center;
+      justify-content: space-between; gap: 8px;
+    }
+
+    #btn-settings, #btn-flash {
+      width: 52px; height: 52px;
+      border-radius: 50%;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-size: 22px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+    }
+    #btn-flash.on { background: var(--accent); color: #111; border-color: var(--accent); }
+
+    #btn-capture {
+      width: 72px; height: 72px;
+      border-radius: 50%;
+      background: #fff;
+      border: 4px solid rgba(255,255,255,0.3);
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: transform 0.1s, background 0.1s;
+      flex-shrink: 0;
+    }
+    #btn-capture:active    { transform: scale(0.92); background: #ddd; }
+    #btn-capture.capturing { background: var(--accent); }
+
+    /* Controles rápidos */
+    #quick-controls {
+      display: flex; gap: 8px;
+      overflow-x: auto; padding-bottom: 2px;
+      scrollbar-width: none;
+    }
+    #quick-controls::-webkit-scrollbar { display: none; }
+
+    .qc-btn {
+      flex-shrink: 0;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      color: var(--text2);
+      font-size: 12px;
+      padding: 6px 12px;
+      cursor: pointer;
+      display: flex; align-items: center; gap: 5px;
+      white-space: nowrap;
+    }
+    .qc-btn.active { border-color: var(--accent); color: var(--accent); }
+    .qc-btn .val   { color: var(--text); font-weight: 600; }
+
+    /* ── PANEL DESLIZABLE ── */
+    #slider-panel {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      background: var(--bg2);
+      border-top: 1px solid var(--border);
+      border-radius: 16px 16px 0 0;
+      padding: 16px 20px 28px;
+      transform: translateY(100%);
+      transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
+      z-index: 10;
+      max-height: 70vh;
+      overflow-y: auto;
+    }
+    #slider-panel.open { transform: translateY(0); }
+
+    .panel-handle {
+      width: 36px; height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      margin: 0 auto 16px;
+    }
+
+    .control-row {
+      display: flex; align-items: center; gap: 12px;
+      margin-bottom: 14px;
+    }
+    .control-label {
+      font-size: 12px; color: var(--text2);
+      width: 52px; flex-shrink: 0;
+    }
+    .control-val {
+      font-size: 13px; font-weight: 600; color: var(--accent);
+      min-width: 44px; text-align: right; flex-shrink: 0;
+    }
+    input[type=range] {
+      flex: 1;
+      accent-color: var(--accent);
+      height: 4px;
+    }
+
+    /* Presets (chips) */
+    .preset-row {
+      display: flex; gap: 6px; flex-wrap: wrap;
+      margin: -6px 0 12px;
+    }
+    .preset-chip {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      color: var(--text2);
+      font-size: 11px;
+      padding: 4px 10px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .preset-chip.active { border-color: var(--accent); color: var(--accent); }
+
+    #btn-lock-controls {
+      width: 100%;
+      padding: 12px;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      font-size: 14px; font-weight: 600;
+      cursor: pointer;
+      margin-top: 4px;
+    }
+    #btn-lock-controls.locked { background: var(--accent); color: #111; border-color: var(--accent); }
+
+    /* ── PANTALLA AJUSTES ── */
+    #settings-screen { background: var(--bg); overflow-y: auto; }
+
+    .settings-header {
+      display: flex; align-items: center; gap: 12px;
+      padding: 20px 16px 16px;
+      border-bottom: 1px solid var(--border);
+      position: sticky; top: 0;
+      background: var(--bg); z-index: 1;
+    }
+    .settings-header h1 { font-size: 18px; font-weight: 600; }
+    #btn-back {
+      width: 36px; height: 36px;
+      background: var(--bg3); border: 1px solid var(--border);
+      border-radius: 50%; color: var(--text); font-size: 18px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+    }
+
+    .settings-section {
+      padding: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .settings-section h2 {
+      font-size: 11px; font-weight: 600; color: var(--text2);
+      text-transform: uppercase; letter-spacing: 0.8px;
+      margin-bottom: 12px;
+    }
+    .setting-row {
+      display: flex; align-items: center;
+      justify-content: space-between; padding: 10px 0;
+    }
+    .setting-label  { font-size: 15px; }
+    .setting-desc   { font-size: 12px; color: var(--text2); margin-top: 2px; }
+
+    select, input[type=text], input[type=number] {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      font-size: 14px; padding: 8px 10px; outline: none;
+    }
+    select:focus, input[type=text]:focus, input[type=number]:focus {
+      border-color: var(--accent);
+    }
+
+    .dim-row { display: flex; align-items: center; gap: 8px; }
+    .dim-row input { width: 80px; text-align: center; }
+    .dim-row span  { color: var(--text2); }
+
+    /* Toggle switch */
+    .toggle {
+      width: 44px; height: 26px;
+      background: var(--bg3); border: 1px solid var(--border);
+      border-radius: 13px; position: relative;
+      cursor: pointer; transition: background 0.2s; flex-shrink: 0;
+    }
+    .toggle::after {
+      content: '';
+      width: 20px; height: 20px; border-radius: 50%;
+      background: var(--text2);
+      position: absolute; top: 2px; left: 2px;
+      transition: transform 0.2s, background 0.2s;
+    }
+    .toggle.on { background: var(--accent); border-color: var(--accent); }
+    .toggle.on::after { transform: translateX(18px); background: #111; }
+
+    /* ── TOAST ── */
+    #toast {
+      position: absolute;
+      top: 60px; left: 50%; transform: translateX(-50%);
+      background: rgba(0,0,0,0.85);
+      color: #fff; font-size: 13px;
+      padding: 8px 18px; border-radius: 20px;
+      border: 1px solid var(--border);
+      white-space: nowrap;
+      opacity: 0; transition: opacity 0.25s;
+      z-index: 100; pointer-events: none;
+    }
+    #toast.show { opacity: 1; }
+    #toast.warn { border-color: var(--danger);  color: #ff9090; }
+    #toast.ok   { border-color: var(--success); color: #80ffb0; }
+
+    /* ── FLASH OVERLAY ── */
+    #flash-overlay {
+      position: absolute; inset: 0;
+      background: #fff; opacity: 0;
+      pointer-events: none; z-index: 5;
+      transition: opacity 0.05s;
+    }
+
+    /* ── MINIATURA ── */
+    #last-thumb {
+      position: absolute;
+      bottom: 12px; left: 12px;
+      width: 52px; height: 52px;
+      border-radius: 8px; border: 2px solid var(--border);
+      object-fit: cover; opacity: 0;
+      transition: opacity 0.3s; cursor: pointer; z-index: 4;
+    }
+    #last-thumb.visible { opacity: 1; }
+
+    /* ── VISTA PREVIA ── */
+    #preview-screen {
+      background: #000;
+      align-items: center; justify-content: center; flex-direction: column;
+    }
+    #preview-img     { max-width: 100%; max-height: 80vh; object-fit: contain; }
+    #preview-name    { margin-top: 12px; font-size: 13px; color: var(--text2); }
+    #btn-close-preview {
+      position: absolute; top: 20px; right: 16px;
+      width: 36px; height: 36px;
+      background: rgba(0,0,0,0.6); border: 1px solid var(--border);
+      border-radius: 50%; color: var(--text); font-size: 20px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+    }
+
+    canvas { display: none; }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════ PANTALLA CÁMARA ═══════════════ -->
+<div id="cam-screen" class="screen active">
+  <div id="viewfinder">
+    <video id="video" autoplay playsinline muted></video>
+
+    <!-- Grid regla de tercios -->
+    <div id="grid-overlay">
+      <svg viewBox="0 0 100 100" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+        <line x1="33.3" y1="0"  x2="33.3" y2="100" stroke="rgba(255,255,255,0.22)" stroke-width="0.3"/>
+        <line x1="66.6" y1="0"  x2="66.6" y2="100" stroke="rgba(255,255,255,0.22)" stroke-width="0.3"/>
+        <line x1="0" y1="33.3"  x2="100" y2="33.3"  stroke="rgba(255,255,255,0.22)" stroke-width="0.3"/>
+        <line x1="0" y1="66.6"  x2="100" y2="66.6"  stroke="rgba(255,255,255,0.22)" stroke-width="0.3"/>
+        <!-- Centro -->
+        <circle cx="50" cy="50" r="1.2" fill="rgba(255,255,255,0.3)"/>
+      </svg>
+    </div>
+
+    <!-- Anillo de enfoque (tap to focus) -->
+    <div id="focus-ring"></div>
+
+    <!-- Indicadores flotantes -->
+    <div id="locked-badge">🔒 BLOQUEADO</div>
+    <div id="zoom-indicator">1.0×</div>
+
+    <!-- Consejos modo guiado -->
+    <div id="guided-tips"></div>
+
+    <div id="flash-overlay"></div>
+    <img id="last-thumb" alt="última foto" />
+  </div>
+
+  <!-- Barra inferior -->
+  <div id="bottom-bar">
+    <!-- Nombre del producto + contador -->
+    <div id="name-row">
+      <input id="product-input" type="text" inputmode="text"
+        placeholder="Código (ej: 1234)" autocomplete="off" autocorrect="off" spellcheck="false" />
+      <div id="counter-badge">
+        <span class="num" id="product-counter">0</span>
+        <span class="sub">fotos</span>
+        <span class="sub" id="photo-count" style="display:none">0</span>
+      </div>
+    </div>
+
+    <!-- Controles rápidos -->
+    <div id="quick-controls">
+      <div class="qc-btn" id="qc-ev"   data-panel="ev">  ± EV  <span class="val" id="ev-label">0</span></div>
+      <div class="qc-btn" id="qc-wb"   data-panel="wb">  WB    <span class="val" id="wb-label">Auto</span></div>
+      <div class="qc-btn" id="qc-iso"  data-panel="iso"> ISO   <span class="val" id="iso-label">Auto</span></div>
+      <div class="qc-btn" id="qc-zoom" data-panel="zoom">Zoom  <span class="val" id="zoom-label">1×</span></div>
+      <div class="qc-btn" id="qc-grid">Grilla</div>
+    </div>
+
+    <!-- Botones principales -->
+    <div id="action-row">
+      <button id="btn-settings" aria-label="Ajustes">⚙️</button>
+      <button id="btn-capture"  aria-label="Tomar foto"></button>
+      <button id="btn-flash"    aria-label="Flash">⚡</button>
+    </div>
+  </div>
+
+  <!-- ── Panel deslizable de controles manuales ── -->
+  <div id="slider-panel">
+    <div class="panel-handle"></div>
+
+    <!-- EV -->
+    <div class="control-row" data-panel="ev">
+      <span class="control-label">Exposición</span>
+      <input type="range" id="sl-ev" min="-3" max="3" step="0.1" value="0" />
+      <span class="control-val" id="sl-ev-val">0</span>
+    </div>
+    <div class="preset-row" id="ev-presets">
+      <div class="preset-chip active" data-ev-preset="auto">Auto</div>
+      <div class="preset-chip" data-ev-preset="light">Producto claro</div>
+      <div class="preset-chip" data-ev-preset="dark">Producto oscuro</div>
+      <div class="preset-chip" data-ev-preset="white">Fondo blanco</div>
+    </div>
+
+    <!-- WB -->
+    <div class="control-row" data-panel="wb">
+      <span class="control-label">Blancos</span>
+      <input type="range" id="sl-wb" min="2500" max="7500" step="100" value="5500" />
+      <span class="control-val" id="sl-wb-val">5500K</span>
+    </div>
+    <div class="preset-row" id="wb-presets">
+      <div class="preset-chip active" data-wb-preset="auto">Auto</div>
+      <div class="preset-chip" data-wb-preset="daylight">Sol</div>
+      <div class="preset-chip" data-wb-preset="cloudy">Nublado</div>
+      <div class="preset-chip" data-wb-preset="fluorescent">Fluoresc.</div>
+      <div class="preset-chip" data-wb-preset="tungsten">Tungst.</div>
+    </div>
+
+    <!-- ISO -->
+    <div class="control-row" data-panel="iso">
+      <span class="control-label">ISO</span>
+      <input type="range" id="sl-iso" min="0" max="6" step="1" value="0" />
+      <span class="control-val" id="sl-iso-val">Auto</span>
+    </div>
+
+    <!-- Zoom -->
+    <div class="control-row" data-panel="zoom">
+      <span class="control-label">Zoom</span>
+      <input type="range" id="sl-zoom" min="1" max="5" step="0.1" value="1" />
+      <span class="control-val" id="sl-zoom-val">1.0×</span>
+    </div>
+
+    <button id="btn-lock-controls">🔓 Bloquear ajustes</button>
+  </div>
+</div>
+
+<!-- ═══════════════ PANTALLA AJUSTES ═══════════════ -->
+<div id="settings-screen" class="screen">
+  <div class="settings-header">
+    <button id="btn-back" aria-label="Volver">←</button>
+    <h1>Ajustes</h1>
+  </div>
+
+  <div class="settings-section">
+    <h2>Salida de fotos</h2>
+
+    <div class="setting-row">
+      <div><div class="setting-label">Formato</div></div>
+      <select id="set-format">
+        <option value="image/jpeg">JPEG</option>
+        <option value="image/png">PNG</option>
+        <option value="image/webp">WebP</option>
+      </select>
+    </div>
+
+    <div class="setting-row">
+      <div>
+        <div class="setting-label">Dimensiones</div>
+        <div class="setting-desc">Ancho × Alto en píxeles</div>
+      </div>
+      <div class="dim-row">
+        <input type="number" id="set-width"  value="1200" min="100" max="6000" />
+        <span>×</span>
+        <input type="number" id="set-height" value="1200" min="100" max="6000" />
+      </div>
+    </div>
+
+    <div class="setting-row">
+      <div>
+        <div class="setting-label">Calidad JPEG</div>
+        <div class="setting-desc" id="quality-desc">95%</div>
+      </div>
+      <input type="range" id="set-quality" min="50" max="100" value="95" style="width:100px" />
+    </div>
+  </div>
+
+  <div class="settings-section">
+    <h2>Nomenclatura</h2>
+
+    <div class="setting-row">
+      <div>
+        <div class="setting-label">Numeración automática</div>
+        <div class="setting-desc">Formato: -CODIGO-1, -CODIGO-2, ...</div>
+      </div>
+      <div id="tog-autonumber" class="toggle on"></div>
+    </div>
+
+    <div class="setting-row">
+      <div>
+        <div class="setting-label">Advertir si ya existe</div>
+        <div class="setting-desc">Alerta antes de sobreescribir</div>
+      </div>
+      <div id="tog-warn-exists" class="toggle on"></div>
+    </div>
+  </div>
+
+  <div class="settings-section">
+    <h2>Procesamiento de imagen</h2>
+
+    <div class="setting-row">
+      <div>
+        <div class="setting-label">Fondo blanco profesional</div>
+        <div class="setting-desc">Limpia grises y lleva el fondo a blanco puro</div>
+      </div>
+      <div id="tog-white-bg" class="toggle"></div>
+    </div>
+
+    <div class="setting-row">
+      <div>
+        <div class="setting-label">Sharpen inteligente</div>
+        <div class="setting-desc">Mejora nitidez y detalle del producto</div>
+      </div>
+      <div id="tog-sharpen" class="toggle"></div>
+    </div>
+  </div>
+
+  <div class="settings-section">
+    <h2>Visualización y asistencia</h2>
+
+    <div class="setting-row">
+      <div>
+        <div class="setting-label">Grilla de composición</div>
+        <div class="setting-desc">Regla de tercios</div>
+      </div>
+      <div id="tog-grid" class="toggle"></div>
+    </div>
+
+    <div class="setting-row">
+      <div>
+        <div class="setting-label">Modo guiado 🎯</div>
+        <div class="setting-desc">Detecta iluminación, centrado y sombras en tiempo real</div>
+      </div>
+      <div id="tog-guided" class="toggle"></div>
+    </div>
+
+    <div class="setting-row">
+      <div>
+        <div class="setting-label">Cámara frontal</div>
+      </div>
+      <div id="tog-front-cam" class="toggle"></div>
+    </div>
+  </div>
+
+  <div class="settings-section">
+    <h2>Sobre la app</h2>
+    <div class="setting-row">
+      <div>
+        <div class="setting-label">FotoPro Productos</div>
+        <div class="setting-desc">v2.0 — Diseñada para catálogos y ecommerce</div>
+      </div>
+    </div>
+    <div class="setting-row">
+      <div>
+        <div class="setting-label">Nomenclatura</div>
+        <div class="setting-desc">Formato: -CODIGO-1.jpg  /  -CODIGO-2.jpg  /  etc.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ PANTALLA VISTA PREVIA ═══════════════ -->
+<div id="preview-screen" class="screen">
+  <button id="btn-close-preview" aria-label="Cerrar">✕</button>
+  <img id="preview-img" alt="Vista previa" />
+  <div id="preview-name"></div>
+</div>
+
+<!-- Canvas oculto para procesamiento -->
+<canvas id="canvas"></canvas>
+<div id="toast"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
