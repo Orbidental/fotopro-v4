@@ -840,3 +840,8 @@ function toggleSetup(id, key, extra) {
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
 init();
+
+// Función global para el botón de captura (onclick directo en HTML)
+window._captureNow = function() {
+  if (!state.timerRunning) runTimerThenShoot();
+};
